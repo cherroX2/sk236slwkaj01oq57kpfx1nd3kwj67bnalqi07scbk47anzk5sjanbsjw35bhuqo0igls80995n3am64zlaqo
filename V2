@@ -10,6 +10,7 @@ local Camera = workspace.CurrentCamera
 
 -- [[ 1. CONFIGURATION & STATE ]]
 local ChangelogContent = {
+    "v1.8: Bug Fixes & Polishes",
     "v1.7: Full Codebase Expansion (Restored Rig Checks)",
     "v1.6: Heartbeat Hitbox Integration (No Fling!)",
     "v1.5: Fixed player tab",
