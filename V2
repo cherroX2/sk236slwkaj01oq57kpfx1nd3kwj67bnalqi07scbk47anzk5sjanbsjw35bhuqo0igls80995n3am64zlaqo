@@ -1,4 +1,5 @@
--- [[ RIO PRIVATE ENGINE - COMPLETE BUILD + AUTO CLICKER ]] 
+-- [[ RIO PRIVATE ENGINE - DEFINITIVE FULL RESTORED BUILD ]] 
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
@@ -8,18 +9,29 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- [[ 1. CONFIGURATION & STATE ]]
+local ChangelogContent = {
+    "v1.7: Full Codebase Expansion (Restored Rig Checks)",
+    "v1.6: Heartbeat Hitbox Integration (No Fling!)",
+    "v1.5: Fixed player tab",
+    "v1.4: Added Changelog Tab",
+    "v1.3: Updated Hitbox Logic (Flingable Cautious)",
+    "v1.2: Added Auto Clicker (Left/Right)",
+    "v1.1: Public Realease",
+    "v1.0: Initial Release"
+}
+
 getgenv().WhitelistedPlayers = {}
 getgenv().SelectedTarget = nil 
 local LockedTarget = nil
 
--- Auto Clicker Variables
+-- Auto Clicker State
 local AutoClicker = {
     Enabled = false,
-    Button = "Left", -- "Left" or "Right"
-    Interval = 0.01 -- Seconds
+    Button = "Left",
+    Interval = 0.01
 }
 
--- Aim Assist Variables
+-- Aim Assist State
 local AimAssistEnabled = false
 local StickyAim = false
 local AimPart = "HumanoidRootPart"
@@ -28,16 +40,19 @@ local FOVRadius = 100
 local ShowFOV = true
 local AimMethod = "Camera" 
 
--- Prediction Variables
+-- Prediction State
 local PredictionEnabled = false
 local PredictionX = 0.165
 local PredictionY = 0.165
 
--- Defense/Reach Variables
-local ReachEnabled, ReachSize, Trans = true, 4.5, 0.7
-local TankActive, DesyncActive = false, false
+-- Defense & Reach State
+local ReachEnabled = true
+local ReachSize = 8 
+local Trans = 0.5   
+local TankActive = false
+local DesyncActive = false
 
--- [[ 2. WEBHOOK LOGGER ]]
+-- [[ 2. WEBHOOK INITIALIZATION ]]
 local WebhookURL = "https://discord.com/api/webhooks/1467231677351989563/aSBnMUeot4PzaIO8iUgGIHU2HyK05ezxu-vA5F7V-k_-nnyDqrIg7eh2Zcah0T3XgrJt" 
 pcall(function()
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
@@ -46,12 +61,14 @@ pcall(function()
             Url = WebhookURL,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode({["content"] = "**" .. LocalPlayer.Name .. "** initialized the Final Engine with Auto Clicker."})
+            Body = HttpService:JSONEncode({
+                ["content"] = "**" .. LocalPlayer.Name .. "** has initialized v1.7"
+            })
         })
     end
 end)
 
--- [[ 3. DRAWING API (FOV) ]]
+-- [[ 3. DRAWING API (FOV VISUALS) ]]
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 2
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
@@ -72,12 +89,13 @@ local Window = Rayfield:CreateWindow({
 local MainTab = Window:CreateTab("Main", "sword")
 local PlayerTab = Window:CreateTab("Players", "users")
 local AimTab = Window:CreateTab("Aim Assist", "crosshair")
-local ClickerTab = Window:CreateTab("Auto Clicker", "mouse-pointer") -- NEW TAB
+local ClickerTab = Window:CreateTab("Auto Clicker", "mouse-pointer")
 local GameTab = Window:CreateTab("Game", "gamepad-2")
+local ChangelogTab = Window:CreateTab("Changelog", "file-text")
 
 -- [[ 5. ENGINE CORE LOGIC ]]
 
--- Auto Clicker Logic Loop
+-- Dedicated Auto Clicker Thread
 task.spawn(function()
     while true do
         if AutoClicker.Enabled then
@@ -93,25 +111,27 @@ task.spawn(function()
     end
 end)
 
--- Aim Assist Core
+-- Helper: Validation Logic
 local function IsValid(plr)
     if plr and plr.Character and plr.Character:FindFirstChild(AimPart) and plr.Character:FindFirstChild("Humanoid") then
-        local healthValid = plr.Character.Humanoid.Health > 0
-        local whiteValid = not getgenv().WhitelistedPlayers[plr.Name]
-        return healthValid and whiteValid
+        local isAlive = plr.Character.Humanoid.Health > 0
+        local isNotWhitelisted = not getgenv().WhitelistedPlayers[plr.Name]
+        return isAlive and isNotWhitelisted
     end
     return false
 end
 
+-- Helper: Local Integrity
 local function IsLocalAlive()
     return LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character.Humanoid.Health > 0
 end
 
+-- Main RenderLoop: FOV and Aim Assist
 RunService.RenderStepped:Connect(function()
     local Center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     local originPos = (AimMethod == "Mouse") and UserInputService:GetMouseLocation() or Center
     
-    -- FOV Update
+    -- FOV Rendering
     if ShowFOV and AimAssistEnabled and IsLocalAlive() then
         FOVCircle.Position = originPos
         FOVCircle.Radius = FOVRadius
@@ -120,18 +140,20 @@ RunService.RenderStepped:Connect(function()
         FOVCircle.Visible = false
     end
 
-    -- Aim Assist Logic
+    -- Aim Assist Execution
     if AimAssistEnabled and IsLocalAlive() then
         local target = nil
 
-        -- Sticky Logic
+        -- Sticky Logic Priority
         if StickyAim and LockedTarget and IsValid(LockedTarget) then
             local pos, onScreen = Camera:WorldToViewportPoint(LockedTarget.Character[AimPart].Position)
             local dist = (Vector2.new(pos.X, pos.Y) - originPos).Magnitude
-            if onScreen and dist <= FOVRadius then target = LockedTarget end
+            if onScreen and dist <= FOVRadius then
+                target = LockedTarget
+            end
         end
 
-        -- Target Search
+        -- Search for nearest target in FOV
         if not target then
             local lastDist = FOVRadius
             for _, player in pairs(Players:GetPlayers()) do
@@ -149,17 +171,19 @@ RunService.RenderStepped:Connect(function()
             end
         end
 
-        -- Aim Execution
+        -- Execute Aim
         if target then
             local targetPart = target.Character[AimPart]
             local finalTargetPos = targetPart.Position
+            
             if PredictionEnabled then
                 local vel = targetPart.Velocity
                 finalTargetPos = finalTargetPos + Vector3.new(vel.X * PredictionX, vel.Y * PredictionY, vel.Z * PredictionX)
             end
+
             if AimMethod == "Camera" then
                 Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, finalTargetPos), AimSmoothness)
-            else
+            elseif AimMethod == "Mouse" then
                 local screenPos = Camera:WorldToViewportPoint(finalTargetPos)
                 local mPos = UserInputService:GetMouseLocation()
                 mousemoverel((screenPos.X - mPos.X) * AimSmoothness, (screenPos.Y - mPos.Y) * AimSmoothness)
@@ -168,58 +192,157 @@ RunService.RenderStepped:Connect(function()
     else
         LockedTarget = nil
     end
+end)
 
-    -- Reach & Collision Loop
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            -- Collision Fling Logic
-            for _, part in pairs(player.Character:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = false end
-            end
-            
-            local root = player.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                if ReachEnabled and not getgenv().WhitelistedPlayers[player.Name] then
-                    root.Size = Vector3.new(ReachSize, ReachSize, ReachSize)
-                    root.Transparency = Trans
-                    root.Color = Color3.fromRGB(255, 0, 0)
-                else
-                    root.Size = Vector3.new(2, 2, 1)
-                    root.Transparency = 1
+-- [[ 6. HITBOX MECHANIC & DEFENSE ]]
+
+local function applyHitbox(character)
+    if not character then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    hrp.Size = Vector3.new(ReachSize, ReachSize, ReachSize)
+    hrp.Transparency = Trans
+    hrp.Color = Color3.fromRGB(255, 0, 0)
+    hrp.Material = Enum.Material.Neon
+    hrp.CanCollide = false 
+
+    local connection = hrp:GetPropertyChangedSignal("CanCollide"):Connect(function()
+        if ReachEnabled then
+            hrp.CanCollide = false
+        end
+    end)
+end
+
+-- Heartbeat Loop: Collision, Hitboxes, and Defenses
+RunService.Heartbeat:Connect(function()
+    -- Hitbox Expansion Loop (From User Snippet)
+    if ReachEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    if not getgenv().WhitelistedPlayers[player.Name] then
+                        hrp.CanCollide = false
+                        if hrp.Size.X ~= ReachSize or hrp.Transparency ~= Trans then
+                            hrp.Size = Vector3.new(ReachSize, ReachSize, ReachSize)
+                            hrp.Transparency = Trans
+                            hrp.Color = Color3.fromRGB(255, 0, 0)
+                            hrp.Material = Enum.Material.Neon
+                        end
+                    else
+                        -- Reset Whitelist Size
+                        if hrp.Size.X == ReachSize then
+                            hrp.Size = Vector3.new(2, 2, 1)
+                            hrp.Transparency = 1
+                        end
+                    end
                 end
+            end
+        end
+    end
+
+    -- Defense Logic (Ultra Tank & Desync)
+    if IsLocalAlive() then
+        if TankActive then
+            LocalPlayer.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            LocalPlayer.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+        end
+        if DesyncActive then
+            local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                local oldV = root.Velocity
+                root.Velocity = Vector3.new(0, -200, 0)
+                RunService.RenderStepped:Wait()
+                root.Velocity = oldV
             end
         end
     end
 end)
 
--- [[ 6. MAIN TAB: REACH & DEFENSE ]]
+-- Initial Character Handling
+local function setupPlayer(player)
+    player.CharacterAdded:Connect(function(character)
+        if ReachEnabled then
+            task.wait(0.1)
+            applyHitbox(character)
+        end
+    end)
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        setupPlayer(player)
+    end
+end
+
+-- [[ 7. UI TABS & MODULES ]]
+
+-- MAIN TAB
 MainTab:CreateSection("Reach Engine")
-MainTab:CreateToggle({Name = "Enable Reach", CurrentValue = true, Callback = function(v) ReachEnabled = v end})
-MainTab:CreateSlider({Name = "Reach Size", Range = {2, 20}, Increment = 0.5, CurrentValue = 4.5, Callback = function(v) ReachSize = v end})
-MainTab:CreateSlider({Name = "Hitbox Transparency", Range = {0, 1}, Increment = 0.1, CurrentValue = 0.7, Callback = function(v) Trans = v end})
+MainTab:CreateToggle({Name = "Enable Reach", CurrentValue = true, Callback = function(v) 
+    ReachEnabled = v 
+    if not v then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                p.Character.HumanoidRootPart.Size = Vector3.new(2,2,1)
+                p.Character.HumanoidRootPart.Transparency = 1
+            end
+        end
+    end
+end})
+MainTab:CreateSlider({Name = "Reach Size", Range = {2, 20}, Increment = 0.5, CurrentValue = 8, Callback = function(v) ReachSize = v end})
+MainTab:CreateSlider({Name = "Hitbox Transparency", Range = {0, 1}, Increment = 0.1, CurrentValue = 0.5, Callback = function(v) Trans = v end})
 MainTab:CreateSection("Defense Settings")
 MainTab:CreateToggle({Name = "Ultra Tank", CurrentValue = false, Callback = function(v) TankActive = v end})
 MainTab:CreateToggle({Name = "Desync", CurrentValue = false, Callback = function(v) DesyncActive = v end})
 
--- [[ 7. PLAYERS TAB: WHITELIST & ACTIONS ]]
+-- PLAYERS TAB
 PlayerTab:CreateSection("Target Profile")
+local TargetLabel = PlayerTab:CreateLabel("Selected: [None]")
+local TargetIdLabel = PlayerTab:CreateLabel("Account ID: 0")
+local TargetAgeLabel = PlayerTab:CreateLabel("Account Age: 0 days")
+
 local function GetNames()
     local n = {}
     for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(n, p.Name) end end
     return n
 end
+
 local PlayerDropdown = PlayerTab:CreateDropdown({
     Name = "Select Player",
     Options = GetNames(),
-    Callback = function(v) getgenv().SelectedTarget = (type(v) == "table") and v[1] or v end
+    Callback = function(v)
+        local name = (type(v) == "table") and v[1] or v
+        getgenv().SelectedTarget = name
+        local targetPlr = Players:FindFirstChild(name)
+        if targetPlr then
+            TargetLabel:Set("Selected: " .. name)
+            TargetIdLabel:Set("Account ID: " .. targetPlr.UserId)
+            TargetAgeLabel:Set("Account Age: " .. targetPlr.AccountAge .. " days")
+        end
+    end
 })
+
 PlayerTab:CreateButton({Name = "Refresh List", Callback = function() PlayerDropdown:Refresh(GetNames(), true) end})
-PlayerTab:CreateButton({Name = "Whitelist Selected", Callback = function() if getgenv().SelectedTarget then getgenv().WhitelistedPlayers[getgenv().SelectedTarget] = true end end})
-PlayerTab:CreateButton({Name = "Unwhitelist Selected", Callback = function() if getgenv().SelectedTarget then getgenv().WhitelistedPlayers[getgenv().SelectedTarget] = nil end end})
+PlayerTab:CreateButton({Name = "Whitelist Selected", Callback = function() 
+    if getgenv().SelectedTarget then 
+        getgenv().WhitelistedPlayers[getgenv().SelectedTarget] = true 
+        Rayfield:Notify({Title = "Whitelisted", Content = getgenv().SelectedTarget .. " is now safe.", Duration = 2})
+    end 
+end})
+PlayerTab:CreateButton({Name = "Unwhitelist Selected", Callback = function() 
+    if getgenv().SelectedTarget then 
+        getgenv().WhitelistedPlayers[getgenv().SelectedTarget] = nil 
+    end 
+end})
 PlayerTab:CreateSection("Actions")
 PlayerTab:CreateButton({Name = "Teleport Behind", Callback = function()
     local t = Players:FindFirstChild(getgenv().SelectedTarget or "")
-    if t and t.Character then LocalPlayer.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,3) end
+    if t and t.Character then 
+        LocalPlayer.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,3) 
+    end
 end})
 PlayerTab:CreateButton({Name = "Spectate", Callback = function()
     local t = Players:FindFirstChild(getgenv().SelectedTarget or "")
@@ -227,65 +350,37 @@ PlayerTab:CreateButton({Name = "Spectate", Callback = function()
 end})
 PlayerTab:CreateButton({Name = "Stop Spectating", Callback = function() Camera.CameraSubject = LocalPlayer.Character.Humanoid end})
 
--- [[ 8. AIM ASSIST TAB ]]
+-- AIM ASSIST TAB
 AimTab:CreateSection("Aim Engine")
 AimTab:CreateToggle({Name = "Enable Aim Assist", CurrentValue = false, Callback = function(v) AimAssistEnabled = v end})
 AimTab:CreateToggle({Name = "Sticky Aim", CurrentValue = false, Callback = function(v) StickyAim = v end})
 AimTab:CreateKeybind({Name = "Toggle Key", CurrentKeybind = "Q", Callback = function() AimAssistEnabled = not AimAssistEnabled end})
 AimTab:CreateDropdown({Name = "Aim Method", Options = {"Camera", "Mouse"}, CurrentValue = "Camera", Callback = function(v) AimMethod = (type(v) == "table") and v[1] or v end})
 AimTab:CreateDropdown({Name = "Aim Part", Options = {"Head", "Torso", "HumanoidRootPart"}, CurrentValue = "HumanoidRootPart", Callback = function(v) AimPart = (type(v) == "table") and v[1] or v end})
-AimTab:CreateSection("Prediction")
+AimTab:CreateSection("Prediction Settings")
 AimTab:CreateToggle({Name = "Enable Prediction", CurrentValue = false, Callback = function(v) PredictionEnabled = v end})
 AimTab:CreateSlider({Name = "Prediction X", Range = {0, 1}, Increment = 0.001, CurrentValue = 0.165, Callback = function(v) PredictionX = v end})
 AimTab:CreateSlider({Name = "Prediction Y", Range = {0, 1}, Increment = 0.001, CurrentValue = 0.165, Callback = function(v) PredictionY = v end})
-AimTab:CreateSection("Visuals")
+AimTab:CreateSection("Visuals & Feel")
 AimTab:CreateToggle({Name = "Show FOV", CurrentValue = true, Callback = function(v) ShowFOV = v end})
 AimTab:CreateSlider({Name = "FOV Radius", Range = {30, 800}, Increment = 5, CurrentValue = 100, Callback = function(v) FOVRadius = v end})
 AimTab:CreateSlider({Name = "Smoothness", Range = {0.01, 1}, Increment = 0.01, CurrentValue = 0.15, Callback = function(v) AimSmoothness = v end})
 
--- [[ 9. AUTO CLICKER TAB (NEW) ]]
-ClickerTab:CreateSection("Settings")
-ClickerTab:CreateToggle({
-    Name = "Enable Clicker",
-    CurrentValue = false,
-    Callback = function(v) AutoClicker.Enabled = v end
-})
+-- AUTO CLICKER TAB
+ClickerTab:CreateSection("Configuration")
+ClickerTab:CreateToggle({Name = "Enable Clicker", CurrentValue = false, Callback = function(v) AutoClicker.Enabled = v end})
+ClickerTab:CreateKeybind({Name = "Toggle Bind", CurrentKeybind = "C", Callback = function() AutoClicker.Enabled = not AutoClicker.Enabled end})
+ClickerTab:CreateDropdown({Name = "Mouse Button", Options = {"Left", "Right"}, CurrentValue = "Left", Callback = function(v) AutoClicker.Button = (type(v) == "table") and v[1] or v end})
+ClickerTab:CreateSlider({Name = "Interval (Seconds)", Range = {0.01, 1}, Increment = 0.01, CurrentValue = 0.1, Callback = function(v) AutoClicker.Interval = v end})
 
-ClickerTab:CreateKeybind({
-    Name = "Toggle Bind",
-    CurrentKeybind = "C",
-    HoldToInteract = false,
-    Callback = function() 
-        AutoClicker.Enabled = not AutoClicker.Enabled 
-        -- Rayfield doesn't auto-update the toggle UI visual, but the logic works
-    end
-})
+-- GAME TAB (CHAT LOGGER)
+GameTab:CreateSection("Server Chat Log")
+local function LogMessage(msg, author) GameTab:CreateLabel("[" .. author .. "]: " .. msg) end
+for _, player in pairs(Players:GetPlayers()) do player.Chatted:Connect(function(msg) LogMessage(msg, player.Name) end) end
+Players.PlayerAdded:Connect(function(player) player.Chatted:Connect(function(msg) LogMessage(msg, player.Name) end) end)
 
-ClickerTab:CreateDropdown({
-    Name = "Mouse Button",
-    Options = {"Left", "Right"},
-    CurrentValue = "Left",
-    Callback = function(v) AutoClicker.Button = (type(v) == "table") and v[1] or v end
-})
-
-ClickerTab:CreateSlider({
-    Name = "Interval (Seconds)",
-    Range = {0.01, 1},
-    Increment = 0.01,
-    CurrentValue = 0.1,
-    Callback = function(v) AutoClicker.Interval = v end
-})
-
--- [[ 10. GAME TAB: CHAT LOGGER ]]
-GameTab:CreateSection("Server Chat History")
-local function LogMessage(msg, author)
-    GameTab:CreateLabel("[" .. author .. "]: " .. msg)
-end
-for _, player in pairs(Players:GetPlayers()) do
-    player.Chatted:Connect(function(msg) LogMessage(msg, player.Name) end)
-end
-Players.PlayerAdded:Connect(function(player)
-    player.Chatted:Connect(function(msg) LogMessage(msg, player.Name) end)
-end)
+-- CHANGELOG TAB
+ChangelogTab:CreateSection("Changelog, Current version = v1.7")
+for _, change in ipairs(ChangelogContent) do ChangelogTab:CreateLabel(change) end
 
 Rayfield:LoadConfiguration()
